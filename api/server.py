@@ -9,6 +9,16 @@ import logging
 import os
 import urllib.parse
 from datetime import date
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Явно указываем путь к .env — сервис может запускаться не из папки проекта
+_env_path = Path("/root/vita_bot/.env")
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()  # fallback: ищем .env в текущей директории
 
 import aiosqlite
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -19,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ── Конфиг ──────────────────────────────────────────────────────────────────
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DB_PATH   = os.getenv("DB_PATH", "/root/vita_bot/database.db")
 
 ALLOWED_ORIGINS = [
