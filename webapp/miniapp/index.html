@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VITA Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Loading -->
+  <div id="loading" class="screen">
+    <div class="loader-ring"></div>
+    <p class="loader-text">Загружаем твой дашборд...</p>
+  </div>
+
+  <!-- Error -->
+  <div id="error" class="screen hidden">
+    <div class="error-icon">😕</div>
+    <h2 class="error-title">Не удалось загрузить данные</h2>
+    <p id="error-msg" class="error-msg"></p>
+    <button class="retry-btn" onclick="loadData()">Повторить</button>
+  </div>
+
+  <!-- No profile -->
+  <div id="no-profile" class="screen hidden">
+    <div class="error-icon">🚀</div>
+    <h2 class="error-title">Профиль не найден</h2>
+    <p class="error-msg">Сначала настрой профиль в боте — нажми кнопку <strong>🚀 Начать</strong></p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">🌿</span>
+        <div>
+          <div class="header-title">VITA Dashboard</div>
+          <div id="header-goal" class="header-sub">Загрузка...</div>
+        </div>
+      </div>
+      <div id="header-date" class="header-date"></div>
+    </header>
+
+    <!-- Calorie Ring -->
+    <section class="ring-section">
+      <div class="ring-wrapper">
+        <svg class="ring-svg" viewBox="0 0 200 200">
+          <circle class="ring-bg"   cx="100" cy="100" r="80" />
+          <circle class="ring-fill" cx="100" cy="100" r="80" id="calRing" />
+        </svg>
+        <div class="ring-center">
+          <div id="cal-current" class="ring-cal">0</div>
+          <div class="ring-label">из <span id="cal-target">—</span></div>
+          <div class="ring-unit">ккал</div>
+        </div>
+      </div>
+
+      <div class="ring-stats">
+        <div class="ring-stat">
+          <div id="pct" class="ring-pct">0%</div>
+          <div class="ring-stat-label">от нормы</div>
+        </div>
+        <div class="ring-stat">
+          <div id="cal-left" class="ring-left">—</div>
+          <div class="ring-stat-label">осталось</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Macros -->
+    <section class="macros-section">
+      <h2 class="section-title">Белки · Жиры · Углеводы</h2>
+      <div class="macros-grid">
+
+        <div class="macro-card" id="card-protein">
+          <div class="macro-header">
+            <span class="macro-icon">🥩</span>
+            <span class="macro-name">Белки</span>
+          </div>
+          <div class="macro-vals">
+            <span id="pro-cur" class="macro-cur">0</span>
+            <span class="macro-sep">/</span>
+            <span id="pro-tgt" class="macro-tgt">—</span>
+            <span class="macro-unit">г</span>
+          </div>
+          <div class="macro-bar-wrap">
+            <div class="macro-bar macro-bar--protein" id="bar-protein"></div>
+          </div>
+        </div>
+
+        <div class="macro-card" id="card-fat">
+          <div class="macro-header">
+            <span class="macro-icon">🥑</span>
+            <span class="macro-name">Жиры</span>
+          </div>
+          <div class="macro-vals">
+            <span id="fat-cur" class="macro-cur">0</span>
+            <span class="macro-sep">/</span>
+            <span id="fat-tgt" class="macro-tgt">—</span>
+            <span class="macro-unit">г</span>
+          </div>
+          <div class="macro-bar-wrap">
+            <div class="macro-bar macro-bar--fat" id="bar-fat"></div>
+          </div>
+        </div>
+
+        <div class="macro-card macro-card--wide" id="card-carbs">
+          <div class="macro-header">
+            <span class="macro-icon">🍞</span>
+            <span class="macro-name">Углеводы</span>
+          </div>
+          <div class="macro-vals">
+            <span id="car-cur" class="macro-cur">0</span>
+            <span class="macro-sep">/</span>
+            <span id="car-tgt" class="macro-tgt">—</span>
+            <span class="macro-unit">г</span>
+          </div>
+          <div class="macro-bar-wrap">
+            <div class="macro-bar macro-bar--carbs" id="bar-carbs"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Weight -->
+    <section class="weight-section">
+      <div class="weight-card">
+        <span class="weight-icon">⚖️</span>
+        <div>
+          <div class="weight-val" id="weight-val">— кг</div>
+          <div class="weight-label">Текущий вес</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+      <a href="https://t.me/VITA_Assist_bot" class="cta-btn">
+        🤖 Открыть бота и добавить еду
+      </a>
+    </section>
+
+  </div><!-- /dashboard -->
+
+  <script src="script.js"></script>
+</body>
+</html>

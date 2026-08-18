@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>VITA Assistant — Расчет рациона</title>
+  <meta name="description" content="Персональный ИИ-помощник по здоровому образу жизни. Расчет КБЖУ, трекер питания и прогресс." />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d1a;
+      --bg2: #141426;
+      --card: #1a1a2e;
+      --card2: #16213e;
+      --accent: #7c6af7;
+      --accent2: #a78bfa;
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #2a2a4a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,106,247,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(167,139,250,0.2) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .logo {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 8vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #fff 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 360px;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--accent) 0%, #5b4fcf 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 16px 32px;
+      border-radius: 16px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 32px rgba(124,106,247,0.4);
+      border: none;
+      cursor: pointer;
+    }
+
+    .cta-btn:hover, .cta-btn:active {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(124,106,247,0.55);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(124,106,247,0.15);
+      border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 0.82rem;
+      color: var(--accent2);
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+
+    /* ── STATS ── */
+    .stats {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      text-align: center;
+    }
+
+    .stat-val { font-size: 1.4rem; font-weight: 700; color: var(--accent2); }
+    .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── FEATURES ── */
+    .section {
+      padding: 60px 24px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 32px;
+      letter-spacing: -0.02em;
+    }
+
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      transition: transform 0.2s, border-color 0.2s;
+      animation: slideUp 0.6s ease backwards;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(124,106,247,0.4);
+    }
+
+    .feature-card:nth-child(1) { animation-delay: 0.1s; }
+    .feature-card:nth-child(2) { animation-delay: 0.2s; }
+    .feature-card:nth-child(3) { animation-delay: 0.3s; }
+    .feature-card:nth-child(4) { animation-delay: 0.4s; }
+    .feature-card:nth-child(5) { animation-delay: 0.5s; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+      width: 52px;
+      height: 52px;
+      background: rgba(124,106,247,0.12);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── CALCULATOR ── */
+    .calc-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      margin: 0 24px 32px;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .calc-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group select option { background: var(--card); }
+
+    .calc-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, #5b4fcf 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .calc-btn:hover { opacity: 0.9; transform: scale(0.99); }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .result-card {
+      background: var(--bg2);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .result-card.main {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, rgba(124,106,247,0.15), rgba(124,106,247,0.05));
+      border-color: rgba(124,106,247,0.3);
+    }
+
+    .result-val {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent2);
+    }
+
+    .result-card.main .result-val { font-size: 2rem; }
+    .result-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── HOW IT WORKS ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 24px;
+      bottom: 24px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .step-num {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--accent), #5b4fcf);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .step-text strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+    .step-text span { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── FOOTER ── */
+    .footer {
+      text-align: center;
+      padding: 40px 24px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer a {
+      color: var(--accent2);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">✨ Бесплатно · Работает в Telegram</div>
+  <div class="logo">🌿</div>
+  <h1>VITA Assistant</h1>
+  <p>Твой персональный ИИ-помощник по здоровому образу жизни, питанию и тренировкам</p>
+  <a class="cta-btn" href="https://t.me/VITA_Assist_bot" target="_blank">
+    <span>🤖</span> Открыть в Telegram
+  </a>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val">🧠</div>
+      <div class="stat-label">Gemini AI</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">📸</div>
+      <div class="stat-label">Распознавание фото</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">⚡</div>
+      <div class="stat-label">Мгновенно</div>
+    </div>
+  </div>
+</section>
+
+<!-- CALCULATOR -->
+<div class="calc-section">
+  <div class="calc-title">🔢 Калькулятор КБЖУ</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Пол</label>
+      <select id="gender">
+        <option value="male">👨 Мужчина</option>
+        <option value="female">👩 Женщина</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Возраст</label>
+      <input type="number" id="age" placeholder="25" min="10" max="100" />
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Вес (кг)</label>
+      <input type="number" id="weight" placeholder="70" min="30" max="300" />
+    </div>
+    <div class="form-group">
+      <label>Рост (см)</label>
+      <input type="number" id="height" placeholder="175" min="100" max="250" />
+    </div>
+  </div>
+  <div class="form-group" style="margin-bottom:12px">
+    <label>Уровень активности</label>
+    <select id="activity">
+      <option value="1.2">🛋 Сидячий образ жизни</option>
+      <option value="1.375">🚶 Лёгкая активность (1-3 раза/нед)</option>
+      <option value="1.55" selected>🏃 Умеренная (3-5 раз/нед)</option>
+      <option value="1.725">💪 Высокая (6-7 раз/нед)</option>
+      <option value="1.9">🔥 Атлет / физ. труд</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin-bottom:12px">
+    <label>Цель</label>
+    <select id="goal">
+      <option value="-500">🔥 Похудение (-500 ккал)</option>
+      <option value="0" selected>⚖️ Поддержание формы</option>
+      <option value="300">💪 Набор массы (+300 ккал)</option>
+    </select>
+  </div>
+  <button class="calc-btn" onclick="calculate()">⚡ Рассчитать</button>
+
+  <div class="result-grid" id="results">
+    <div class="result-card main">
+      <div class="result-val" id="res-cal">—</div>
+      <div class="result-sub">ккал в день</div>
+    </div>
+    <div class="result-card">
+      <div class="result-val" id="res-protein" style="color:#22c55e">—</div>
+      <div class="result-sub">🥩 Белки (г)</div>
+    </div>
+    <div class="result-card">
+      <div class="result-val" id="res-fat" style="color:#f59e0b">—</div>
+      <div class="result-sub">🥑 Жиры (г)</div>
+    </div>
+    <div class="result-card" style="grid-column: 1 / -1">
+      <div class="result-val" id="res-carbs" style="color:#818cf8">—</div>
+      <div class="result-sub">🍞 Углеводы (г)</div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section">
+  <h2 class="section-title">Что умеет VITA? 🚀</h2>
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">📸</div>
+      <div>
+        <div class="feature-title">Распознавание еды по фото</div>
+        <div class="feature-desc">Сфотографируй блюдо — бот мгновенно определит состав и калорийность через Gemini AI</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🥗</div>
+      <div>
+        <div class="feature-title">Расчет рациона</div>
+        <div class="feature-desc">ИИ составит персональный рацион на день с учётом твоей цели, веса и бюджета</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div>
+        <div class="feature-title">Трекер питания и прогресса</div>
+        <div class="feature-desc">Ведёт дневник КБЖУ, строит графики веса, показывает прогресс к цели</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏋️</div>
+      <div>
+        <div class="feature-title">Генерация тренировок</div>
+        <div class="feature-desc">Составит программу тренировок под твою цель и место (дом или зал)</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💧</div>
+      <div>
+        <div class="feature-title">Трекер воды</div>
+        <div class="feature-desc">Следит за твоим водным балансом в течение дня, напоминает пить воду</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" style="padding-top: 0">
+  <h2 class="section-title">Как начать? 👇</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <strong>Открой бота в Telegram</strong>
+        <span>Найди @VITA_Assist_bot или нажми кнопку выше</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <strong>Заполни профиль</strong>
+        <span>Нажми «🚀 Начать» и ответь на 5 простых вопросов</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <strong>Используй любые функции</strong>
+        <span>Фото еды, рацион, тренировки — всё в одном боте</span>
+      </div>
+    </div>
+  </div>
+
+  <a class="cta-btn" href="https://t.me/VITA_Assist_bot" target="_blank" style="width:100%; justify-content: center; margin-top: 32px; display: flex">
+    🌿 Попробовать бесплатно
+  </a>
+</section>
+
+<footer class="footer">
+  <p>VITA Assistant © 2025 · <a href="https://t.me/VITA_Assist_bot">@VITA_Assist_bot</a></p>
+  <p style="margin-top: 8px; font-size: 0.78rem">Powered by Google Gemini AI</p>
+</footer>
+
+<script>
+  // Инициализация Telegram Web App
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.setHeaderColor('#0d0d1a');
+    tg.setBackgroundColor('#0d0d1a');
+  }
+
+  function calculate() {
+    const gender   = document.getElementById('gender').value;
+    const age      = parseFloat(document.getElementById('age').value);
+    const weight   = parseFloat(document.getElementById('weight').value);
+    const height   = parseFloat(document.getElementById('height').value);
+    const activity = parseFloat(document.getElementById('activity').value);
+    const goalDiff = parseFloat(document.getElementById('goal').value);
+
+    if (!age || !weight || !height) {
+      alert('Заполни все поля!');
+      return;
+    }
+
+    // Harris-Benedict BMR
+    let bmr;
+    if (gender === 'male') {
+      bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    } else {
+      bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    }
+
+    const tdee     = bmr * activity;
+    const calories = Math.round(tdee + goalDiff);
+    const protein  = Math.round(weight * 2);
+    const fat      = Math.round(weight * 1);
+    const carbs    = Math.round((calories - protein * 4 - fat * 9) / 4);
+
+    document.getElementById('res-cal').textContent     = calories;
+    document.getElementById('res-protein').textContent = protein;
+    document.getElementById('res-fat').textContent     = Math.max(0, fat);
+    document.getElementById('res-carbs').textContent   = Math.max(0, carbs);
+
+    const results = document.getElementById('results');
+    results.style.display = 'grid';
+    results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Если открыт в Telegram — показываем кнопку "Открыть бота"
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.MainButton.setText('🤖 Открыть бота').show();
+      window.Telegram.WebApp.MainButton.onClick(() => {
+        window.Telegram.WebApp.close();
+      });
+    }
+  }
+</script>
+</body>
+</html>
