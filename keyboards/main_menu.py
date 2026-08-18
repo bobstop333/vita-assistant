@@ -1,7 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 # Mini App URL (GitHub Pages)
-MINI_APP_URL = "https://bobstop333.github.io/vita-assistant/miniapp/"
+MINI_APP_URL = "https://bobstop333.github.io/vita-assistant/webapp/miniapp/"
 
 def main_kb():
     return ReplyKeyboardMarkup(
