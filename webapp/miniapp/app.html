@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VITA — Твой ЗОЖ ассистент</title>
+  <meta name="description" content="VITA Mini App — трекер питания, прогресс и ИИ-чат по здоровому образу жизни" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ══════════════════════════════════════════
+       DESIGN TOKENS
+    ══════════════════════════════════════════ */
+    :root {
+      --bg:        #0d0d1a;
+      --bg2:       #141426;
+      --card:      #1a1a2e;
+      --card2:     #16213e;
+      --accent:    #7c6af7;
+      --accent2:   #a78bfa;
+      --green:     #22c55e;
+      --green2:    #16a34a;
+      --red:       #ef4444;
+      --orange:    #f59e0b;
+      --blue:      #60a5fa;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --border:    #2a2a4a;
+      --tab-h:     68px;
+      --safe-b:    env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ══════════════════════════════════════════
+       APP SHELL
+    ══════════════════════════════════════════ */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* ─── Pages ─── */
+    #pages {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      padding-bottom: calc(var(--tab-h) + var(--safe-b) + 8px);
+    }
+
+    #pages::-webkit-scrollbar { display: none; }
+
+    .page {
+      display: none;
+      animation: fadeIn .25s ease;
+      min-height: 100%;
+      padding: 16px 16px 8px;
+    }
+
+    .page.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════════
+       TAB BAR
+    ══════════════════════════════════════════ */
+    #tabbar {
+      display: flex;
+      height: var(--tab-h);
+      background: rgba(20,20,38,0.95);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      padding-bottom: var(--safe-b);
+      flex-shrink: 0;
+    }
+
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+      padding: 8px 4px;
+      border: none;
+      background: none;
+      color: var(--muted);
+    }
+
+    .tab .tab-icon { font-size: 22px; transition: transform .25s; }
+    .tab .tab-label { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; transition: color .2s; }
+
+    .tab.active { color: var(--accent2); }
+    .tab.active .tab-icon { transform: scale(1.15); }
+
+    .tab.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 2px;
+      background: var(--accent2);
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* ══════════════════════════════════════════
+       SHARED COMPONENTS
+    ══════════════════════════════════════════ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .section-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+
+    .card-sm {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: transform .15s, opacity .15s;
+    }
+
+    .btn:active { transform: scale(0.97); opacity: 0.85; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #5b4fcf 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(124,106,247,0.35);
+    }
+
+    .btn-secondary {
+      background: rgba(124,106,247,0.12);
+      color: var(--accent2);
+      border: 1px solid rgba(124,106,247,0.25);
+    }
+
+    .btn-green {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green2) 100%);
+      color: white;
+      box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(124,106,247,0.12);
+      border: 1px solid rgba(124,106,247,0.25);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      color: var(--accent2);
+      font-weight: 500;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--tab-h) + var(--safe-b) + 16px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s;
+      z-index: 999;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,13,26,0.8);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+    #loading-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #loading-overlay .load-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(124,106,247,0.2);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    #loading-overlay p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* ══════════════════════════════════════════
+       PAGE: ПИТАНИЕ
+    ══════════════════════════════════════════ */
+
+    /* КБЖУ Progress Bar горизонтальный */
+    .macro-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .macro-item {
+      flex: 1;
+      background: var(--bg2);
+      border-radius: 14px;
+      padding: 12px 10px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .macro-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .macro-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .macro-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* Главный прогресс-бар калорий */
+    .cal-progress-wrap {
+      margin-bottom: 6px;
+    }
+
+    .cal-progress-bar-bg {
+      height: 10px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .cal-progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 100px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+      width: 0;
+    }
+
+    .cal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .cal-eaten { font-size: 1.5rem; font-weight: 800; }
+    .cal-target { font-size: 0.85rem; color: var(--muted); }
+
+    /* Кнопки добавления еды */
+    .food-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    /* Список приёмов */
+    .meal-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meal-item:last-child { border-bottom: none; }
+
+    .meal-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .meal-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .meal-cal {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent2);
+      white-space: nowrap;
+    }
+
+    /* Photo preview */
+    #photo-preview-card {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    #photo-preview-img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+
+    #food-result-card {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .result-macro-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .result-macro {
+      background: var(--bg2);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .result-macro-val { font-size: 1.05rem; font-weight: 700; }
+    .result-macro-label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+    /* ══════════════════════════════════════════
+       PAGE: ПРОГРЕСС
+    ══════════════════════════════════════════ */
+
+    /* Кольцевые прогресс индикаторы */
+    .rings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .ring-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ring-card.main-ring {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .ring-svg { flex-shrink: 0; }
+
+    circle { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+
+    .ring-info { flex: 1; }
+    .ring-title { font-size: 0.75rem; color: var(--muted); font-weight: 500; margin-bottom: 2px; }
+    .ring-val   { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .ring-sub   { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+
+    /* SVG Chart */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .chart-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--muted);
+    }
+
+    #weight-svg {
+      width: 100%;
+      height: 140px;
+      overflow: visible;
+    }
+
+    /* Форма веса */
+    .weight-input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-field {
+      flex: 1;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .input-field:focus { border-color: var(--accent); }
+    .input-field::placeholder { color: var(--muted); }
+
+    /* ══════════════════════════════════════════
+       PAGE: ИИ-ЧАТ
+    ══════════════════════════════════════════ */
+    #chat-page {
+      display: none;
+      flex-direction: column;
+      padding: 0;
+      height: 100%;
+    }
+
+    #chat-page.active {
+      display: flex;
+    }
+
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #chat-messages::-webkit-scrollbar { display: none; }
+
+    .chat-bubble {
+      max-width: 84%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      animation: fadeIn .2s ease;
+    }
+
+    .bubble-user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent), #5b4fcf);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble-bot {
+      align-self: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble-typing {
+      display: flex;
+      gap: 5px;
+      padding: 14px 16px;
+    }
+
+    .bubble-typing span {
+      width: 7px; height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    .bubble-typing span:nth-child(2) { animation-delay: .2s; }
+    .bubble-typing span:nth-child(3) { animation-delay: .4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { transform: scale(1); opacity: .5; }
+      40% { transform: scale(1.3); opacity: 1; }
+    }
+
+    #chat-input-area {
+      padding: 12px 16px;
+      background: rgba(20,20,38,0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    #chat-input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: 'Inter', sans-serif;
+      resize: none;
+      outline: none;
+      max-height: 100px;
+      overflow-y: auto;
+      transition: border-color .2s;
+      line-height: 1.4;
+    }
+
+    #chat-input:focus { border-color: var(--accent); }
+    #chat-input::placeholder { color: var(--muted); }
+
+    #chat-send {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #5b4fcf);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform .15s, opacity .15s;
+      box-shadow: 0 4px 16px rgba(124,106,247,0.4);
+    }
+
+    #chat-send:active { transform: scale(0.92); }
+
+    #chat-send svg { width: 18px; height: 18px; fill: white; }
+
+    /* Chips быстрых вопросов */
+    .quick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 16px 10px;
+    }
+
+    .chip {
+      background: rgba(124,106,247,0.1);
+      border: 1px solid rgba(124,106,247,0.2);
+      border-radius: 100px;
+      padding: 7px 14px;
+      font-size: 0.8rem;
+      color: var(--accent2);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .chip:active { background: rgba(124,106,247,0.2); transform: scale(0.96); }
+
+    /* ══════════════════════════════════════════
+       EMPTY STATE
+    ══════════════════════════════════════════ */
+    .empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.88rem; line-height: 1.5; }
+
+    /* ══════════════════════════════════════════
+       ERROR BANNER
+    ══════════════════════════════════════════ */
+    .error-banner {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    /* ══════════════════════════════════════════
+       HIDDEN FILE INPUT
+    ══════════════════════════════════════════ */
+    #file-input { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ════════ PAGES ════════ -->
+  <div id="pages">
+
+    <!-- ─────────── ПИТАНИЕ ─────────── -->
+    <div id="food-page" class="page active">
+
+      <div class="section-header">
+        <span style="font-size:1.6rem">🍽</span>
+        <div>
+          <h2>Дневник питания</h2>
+          <div class="pill-badge" id="food-date-badge">Сегодня</div>
+        </div>
+      </div>
+
+      <!-- Калории -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="cal-row">
+          <span class="cal-eaten" id="cal-eaten">—</span>
+          <span class="cal-target" id="cal-target">/ — ккал</span>
+        </div>
+        <div class="cal-progress-wrap">
+          <div class="cal-progress-bar-bg">
+            <div class="cal-progress-bar-fill" id="cal-bar"></div>
+          </div>
+        </div>
+        <!-- КБЖУ мини -->
+        <div class="macro-row" style="margin-top:14px;margin-bottom:0">
+          <div class="macro-item">
+            <div class="macro-val" id="p-cur" style="color:#22c55e">—</div>
+            <div class="macro-label">🥩 Белки</div>
+            <div class="macro-sub" id="p-target">/ — г</div>
+          </div>
+          <div class="macro-item">
+            <div class="macro-val" id="f-cur" style="color:#f59e0b">—</div>
+            <div class="macro-label">🥑 Жиры</div>
+            <div class="macro-sub" id="f-target">/ — г</div>
+          </div>
+          <div class="macro-item">
+            <div class="macro-val" id="c-cur" style="color:#818cf8">—</div>
+            <div class="macro-label">🍞 Углеводы</div>
+            <div class="macro-sub" id="c-target">/ — г</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Кнопки добавления -->
+      <div class="food-actions">
+        <button class="btn btn-primary" onclick="openCamera()" id="btn-photo">
+          <span>📸</span> Фото еды
+        </button>
+        <button class="btn btn-secondary" onclick="refreshFood()" id="btn-refresh">
+          <span>🔄</span> Обновить
+        </button>
+      </div>
+
+      <!-- Превью фото -->
+      <div class="card" id="photo-preview-card">
+        <img id="photo-preview-img" src="" alt="Фото еды" />
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px" id="analyzing-row">
+          <div class="spinner"></div>
+          <span style="font-size:.88rem;color:var(--muted)">Анализирую блюдо…</span>
+        </div>
+      </div>
+
+      <!-- Результат анализа -->
+      <div class="card" id="food-result-card">
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Распознано</div>
+        <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px" id="res-name">—</div>
+        <div class="result-macro-row">
+          <div class="result-macro">
+            <div class="result-macro-val" id="res-cal" style="color:var(--accent2)">—</div>
+            <div class="result-macro-label">ккал</div>
+          </div>
+          <div class="result-macro">
+            <div class="result-macro-val" id="res-pro" style="color:var(--green)">—</div>
+            <div class="result-macro-label">белки г</div>
+          </div>
+          <div class="result-macro">
+            <div class="result-macro-val" id="res-fat" style="color:var(--orange)">—</div>
+            <div class="result-macro-label">жиры г</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-green" style="flex:1" id="btn-save-meal" onclick="saveMeal()">
+            ✅ Сохранить
+          </button>
+          <button class="btn btn-ghost" style="width:50px" onclick="cancelMeal()">✕</button>
+        </div>
+      </div>
+
+      <!-- История -->
+      <div class="card">
+        <div style="font-size:0.85rem;font-weight:600;color:var(--muted);margin-bottom:12px">
+          📋 Приёмы пищи сегодня
+        </div>
+        <div id="meals-list">
+          <div class="empty-state">
+            <div class="empty-icon">🍴</div>
+            <p>Ты ещё ничего не добавил.<br>Сфотографируй блюдо!</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /food-page -->
+
+
+    <!-- ─────────── ПРОГРЕСС ─────────── -->
+    <div id="progress-page" class="page">
+
+      <div class="section-header">
+        <span style="font-size:1.6rem">📊</span>
+        <h2>Мой прогресс</h2>
+      </div>
+
+      <!-- Кольца КБЖУ -->
+      <div class="rings-grid">
+        <!-- Главное кольцо — калории -->
+        <div class="ring-card main-ring">
+          <svg class="ring-svg" width="90" height="90" viewBox="0 0 90 90" id="ring-svg-cal">
+            <circle cx="45" cy="45" r="36" stroke="rgba(124,106,247,0.15)" stroke-width="8"/>
+            <circle cx="45" cy="45" r="36" stroke="var(--accent2)" stroke-width="8"
+              stroke-dasharray="226" stroke-dashoffset="226"
+              transform="rotate(-90 45 45)" id="ring-cal"/>
+          </svg>
+          <div class="ring-info">
+            <div class="ring-title">🔥 Калории</div>
+            <div class="ring-val" id="ring-cal-text">—</div>
+            <div class="ring-sub" id="ring-cal-sub">/ — ккал</div>
+          </div>
+        </div>
+        <!-- Белки -->
+        <div class="ring-card">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="25" stroke="rgba(34,197,94,0.15)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="25" stroke="var(--green)" stroke-width="6"
+              stroke-dasharray="157" stroke-dashoffset="157"
+              transform="rotate(-90 32 32)" id="ring-pro"/>
+          </svg>
+          <div style="text-align:center">
+            <div class="ring-title">🥩 Белки</div>
+            <div style="font-size:1.1rem;font-weight:700" id="ring-pro-text">—</div>
+            <div class="ring-sub" id="ring-pro-sub">/ — г</div>
+          </div>
+        </div>
+        <!-- Жиры -->
+        <div class="ring-card">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="25" stroke="rgba(245,158,11,0.15)" stroke-width="6"/>
+            <circle cx="32" cy="32" r="25" stroke="var(--orange)" stroke-width="6"
+              stroke-dasharray="157" stroke-dashoffset="157"
+              transform="rotate(-90 32 32)" id="ring-fat"/>
+          </svg>
+          <div style="text-align:center">
+            <div class="ring-title">🥑 Жиры</div>
+            <div style="font-size:1.1rem;font-weight:700" id="ring-fat-text">—</div>
+            <div class="ring-sub" id="ring-fat-sub">/ — г</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- График веса -->
+      <div class="chart-card">
+        <div class="chart-title">📈 Динамика веса</div>
+        <svg id="weight-svg" viewBox="0 0 300 120" preserveAspectRatio="none">
+          <text x="150" y="65" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Inter">
+            Нет данных о весе
+          </text>
+        </svg>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--muted)" id="weight-chart-labels"></div>
+      </div>
+
+      <!-- Записать вес -->
+      <div class="card">
+        <div style="font-size:0.85rem;font-weight:600;margin-bottom:12px">⚖️ Записать вес</div>
+        <div class="weight-input-row">
+          <input class="input-field" type="number" step="0.1" min="20" max="400"
+                 placeholder="75.5 кг" id="weight-input" />
+          <button class="btn btn-primary" style="width:auto;padding:12px 18px"
+                  onclick="saveWeight()">Сохранить</button>
+        </div>
+        <!-- История -->
+        <div id="weight-history-list" style="margin-top:14px"></div>
+      </div>
+
+    </div><!-- /progress-page -->
+
+
+    <!-- ─────────── ИИ-ЧАТ ─────────── -->
+    <div id="chat-page" class="page">
+
+      <div id="chat-header" style="padding:16px 16px 8px">
+        <div class="section-header" style="margin-bottom:8px">
+          <span style="font-size:1.6rem">🤖</span>
+          <div>
+            <h2>ИИ-ассистент</h2>
+            <div class="pill-badge">Gemini AI</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Быстрые чипы -->
+      <div class="quick-chips" id="quick-chips">
+        <button class="chip" onclick="sendChip('Сколько калорий мне нужно в день?')">Калории в день</button>
+        <button class="chip" onclick="sendChip('Что лучше есть после тренировки?')">После тренировки</button>
+        <button class="chip" onclick="sendChip('Как быстро похудеть здорово?')">Похудеть</button>
+        <button class="chip" onclick="sendChip('Продукты богатые белком')">Белковые продукты</button>
+      </div>
+
+      <div id="chat-messages"></div>
+
+      <div id="chat-input-area">
+        <textarea id="chat-input" placeholder="Спроси про питание или ЗОЖ…" rows="1"
+          onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+        <button id="chat-send" onclick="sendChat()">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+
+    </div><!-- /chat-page -->
+
+  </div><!-- /pages -->
+
+  <!-- ════════ TAB BAR ════════ -->
+  <div id="tabbar">
+    <button class="tab active" data-page="food-page" onclick="switchTab(this)" id="tab-food">
+      <span class="tab-icon">🍽</span>
+      <span class="tab-label">Питание</span>
+    </button>
+    <button class="tab" data-page="progress-page" onclick="switchTab(this)" id="tab-progress">
+      <span class="tab-icon">📊</span>
+      <span class="tab-label">Прогресс</span>
+    </button>
+    <button class="tab" data-page="chat-page" onclick="switchTab(this)" id="tab-chat">
+      <span class="tab-icon">🤖</span>
+      <span class="tab-label">ИИ-чат</span>
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="load-spinner"></div>
+  <p id="loading-text">Загрузка…</p>
+</div>
+
+<!-- Hidden file input для фото -->
+<input type="file" id="file-input" accept="image/*" capture="environment"
+       onchange="handlePhotoSelected(event)" />
+
+<script>
+// ══════════════════════════════════════════════════════
+// КОНФИГ
+// ══════════════════════════════════════════════════════
+// Production API через nginx reverse proxy (https://185-255-132-62.sslip.io/api → 127.0.0.1:8001)
+const API_BASE = 'https://185-255-132-62.sslip.io';
+
+// State
+let state = {
+  initData:   '',
+  userData:   null,
+  mealsToday: [],
+  pendingFood: null,  // результат анализа фото
+};
+
+// ── Telegram Web App ──────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.expand();
+  tg.setHeaderColor('#0d0d1a');
+  tg.setBackgroundColor('#0d0d1a');
+  state.initData = tg.initData || '';
+}
+
+// ══════════════════════════════════════════════════════
+// API HELPERS
+// ══════════════════════════════════════════════════════
+async function apiGet(path) {
+  const url = new URL(API_BASE + path);
+  if (state.initData) url.searchParams.set('initData', state.initData);
+  const res = await fetch(url.toString(), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'X-Init-Data':   state.initData,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════════════
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function showLoading(text = 'Загрузка…') {
+  document.getElementById('loading-text').textContent = text;
+  document.getElementById('loading-overlay').classList.add('visible');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('visible');
+}
+
+// ══════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ══════════════════════════════════════════════════════
+function switchTab(btn) {
+  const pageId = btn.dataset.page;
+
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+
+  // При переключении на прогресс — подгружаем данные
+  if (pageId === 'progress-page') loadProgress();
+
+  // Скролл в верх
+  document.getElementById('pages').scrollTo({ top: 0 });
+}
+
+// ══════════════════════════════════════════════════════
+// СТРАНИЦА: ПИТАНИЕ
+// ══════════════════════════════════════════════════════
+async function loadFoodPage() {
+  try {
+    const [userData, mealsData] = await Promise.all([
+      apiGet('/api/user-data'),
+      apiGet('/api/meals-today'),
+    ]);
+    state.userData   = userData;
+    state.mealsToday = mealsData.meals;
+    renderFoodSummary(userData, mealsData);
+    renderMealsList(mealsData.meals);
+
+    // Дата в бейдже
+    const today = new Date();
+    document.getElementById('food-date-badge').textContent =
+      today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  } catch (err) {
+    console.error(err);
+    if (err.message.includes('Profile not found')) {
+      document.getElementById('meals-list').innerHTML = `
+        <div class="error-banner">
+          ⚠️ Профиль не найден.<br>Сначала пройди анкету в боте (@VITA_Assist_bot)
+        </div>`;
+    } else {
+      showToast('⚠️ ' + err.message);
+    }
+  }
+}
+
+function renderFoodSummary(ud, md) {
+  const calEaten = md.totals.calories;
+  const calTarget = ud.calories_target;
+  const pct = calTarget ? Math.min(100, Math.round(calEaten / calTarget * 100)) : 0;
+
+  document.getElementById('cal-eaten').textContent = calEaten;
+  document.getElementById('cal-target').textContent = `/ ${calTarget} ккал`;
+  document.getElementById('cal-bar').style.width = pct + '%';
+
+  document.getElementById('p-cur').textContent = md.totals.protein;
+  document.getElementById('p-target').textContent = `/ ${ud.protein_target} г`;
+
+  document.getElementById('f-cur').textContent = md.totals.fat;
+  document.getElementById('f-target').textContent = `/ ${ud.fat_target} г`;
+
+  document.getElementById('c-cur').textContent = md.totals.carbs;
+  document.getElementById('c-target').textContent = `/ ${ud.carbs_target} г`;
+}
+
+function renderMealsList(meals) {
+  const el = document.getElementById('meals-list');
+  if (!meals.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🍴</div>
+      <p>Ты ещё ничего не добавил.<br>Сфотографируй блюдо!</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = meals.map(m => `
+    <div class="meal-item">
+      <div>
+        <div class="meal-name">${m.name}</div>
+        <div class="meal-meta">🕐 ${m.time} · 🥩${m.protein}г · 🥑${m.fat}г · 🍞${m.carbs}г</div>
+      </div>
+      <div class="meal-cal">🔥 ${m.calories}</div>
+    </div>`).join('');
+}
+
+async function refreshFood() {
+  document.getElementById('btn-refresh').disabled = true;
+  try {
+    await loadFoodPage();
+    showToast('✅ Обновлено!');
+  } finally {
+    document.getElementById('btn-refresh').disabled = false;
+  }
+}
+
+// ── Фото ──────────────────────────────────────────────
+function openCamera() {
+  document.getElementById('file-input').click();
+}
+
+async function handlePhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Показываем превью
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    document.getElementById('photo-preview-img').src = dataUrl;
+    document.getElementById('photo-preview-card').style.display = 'block';
+    document.getElementById('analyzing-row').style.display = 'flex';
+    document.getElementById('food-result-card').style.display = 'none';
+
+    // Скроллим к превью
+    document.getElementById('photo-preview-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Убираем data:image/..;base64, — оставляем только base64
+    const base64 = dataUrl.split(',')[1];
+    const mimeType = file.type || 'image/jpeg';
+
+    try {
+      const result = await apiPost('/api/analyze-food-photo', {
+        image_base64: base64,
+        mime_type: mimeType,
+      });
+
+      state.pendingFood = result;
+
+      // Показываем результат
+      document.getElementById('analyzing-row').style.display = 'none';
+      document.getElementById('res-name').textContent = result.name;
+      document.getElementById('res-cal').textContent  = result.calories;
+      document.getElementById('res-pro').textContent  = result.protein;
+      document.getElementById('res-fat').textContent  = result.fat;
+      document.getElementById('food-result-card').style.display = 'block';
+
+    } catch (err) {
+      document.getElementById('photo-preview-card').style.display = 'none';
+      showToast('😕 Не удалось распознать блюдо. Попробуй ещё раз.');
+      console.error(err);
+    }
+  };
+  reader.readAsDataURL(file);
+
+  // Сбрасываем input чтобы можно было выбрать тот же файл ещё раз
+  event.target.value = '';
+}
+
+async function saveMeal() {
+  if (!state.pendingFood) return;
+
+  const btn = document.getElementById('btn-save-meal');
+  btn.disabled = true;
+  btn.textContent = '⏳ Сохраняю…';
+
+  try {
+    await apiPost('/api/save-meal', state.pendingFood);
+    state.pendingFood = null;
+    document.getElementById('photo-preview-card').style.display = 'none';
+    document.getElementById('food-result-card').style.display = 'none';
+    showToast('✅ Приём пищи сохранён!');
+    await loadFoodPage();
+  } catch (err) {
+    showToast('⚠️ Ошибка сохранения: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✅ Сохранить';
+  }
+}
+
+function cancelMeal() {
+  state.pendingFood = null;
+  document.getElementById('photo-preview-card').style.display = 'none';
+  document.getElementById('food-result-card').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// СТРАНИЦА: ПРОГРЕСС
+// ══════════════════════════════════════════════════════
+let progressLoaded = false;
+
+async function loadProgress() {
+  try {
+    const [userData, mealsData, weightData] = await Promise.all([
+      apiGet('/api/user-data'),
+      apiGet('/api/meals-today'),
+      apiGet('/api/weight-history'),
+    ]);
+
+    renderRings(userData, mealsData.totals);
+    renderWeightChart(weightData);
+    renderWeightHistory(weightData.records);
+
+    progressLoaded = true;
+  } catch (err) {
+    showToast('⚠️ ' + err.message);
+    console.error(err);
+  }
+}
+
+function setRing(svgId, textId, subId, current, target, color, unit) {
+  const circle = document.getElementById(svgId);
+  const textEl = document.getElementById(textId);
+  const subEl  = document.getElementById(subId);
+
+  if (!circle) return;
+  const totalLen = parseFloat(circle.getAttribute('stroke-dasharray'));
+  const pct = target ? Math.min(1, current / target) : 0;
+  circle.style.strokeDashoffset = totalLen * (1 - pct);
+
+  if (textEl) textEl.textContent = current;
+  if (subEl)  subEl.textContent  = `/ ${target} ${unit}`;
+}
+
+function renderRings(ud, totals) {
+  setRing('ring-cal', 'ring-cal-text', 'ring-cal-sub',
+    totals.calories, ud.calories_target, 'var(--accent2)', 'ккал');
+  setRing('ring-pro', 'ring-pro-text', 'ring-pro-sub',
+    totals.protein,  ud.protein_target, 'var(--green)', 'г');
+  setRing('ring-fat', 'ring-fat-text', 'ring-fat-sub',
+    totals.fat,      ud.fat_target,     'var(--orange)', 'г');
+}
+
+function renderWeightChart(data) {
+  const svg = document.getElementById('weight-svg');
+  const labelsEl = document.getElementById('weight-chart-labels');
+
+  if (!data.records.length) {
+    svg.innerHTML = `<text x="150" y="65" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="Inter">Нет записей веса</text>`;
+    labelsEl.innerHTML = '';
+    return;
+  }
+
+  const W = 300, H = 120;
+  const PAD = { top: 16, bottom: 24, left: 10, right: 10 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+
+  const weights = data.records.map(r => r.weight);
+  const dates   = data.records.map(r => r.date);
+  const minW = Math.min(...weights) - 1;
+  const maxW = Math.max(...weights) + 1;
+  const n = weights.length;
+
+  const px = i => PAD.left + (i / Math.max(n - 1, 1)) * innerW;
+  const py = w => PAD.top + innerH - ((w - minW) / (maxW - minW || 1)) * innerH;
+
+  // Строим путь
+  const points = weights.map((w, i) => `${px(i)},${py(w)}`).join(' ');
+  const polyPath = `M ${points.replace(/ /g, ' L ')}`;
+
+  // Зона под линией
+  const areaPath = `M ${px(0)},${py(minW - 0.5)} L ${polyPath.slice(2)} L ${px(n-1)},${py(minW - 0.5)} Z`;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7c6af7" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#7c6af7" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#wGrad)"/>
+    <polyline points="${points}" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${weights.map((w, i) => `
+      <circle cx="${px(i)}" cy="${py(w)}" r="4" fill="#a78bfa" stroke="#1a1a2e" stroke-width="2"/>
+      <text x="${px(i)}" y="${py(w) - 8}" text-anchor="middle" fill="#f1f5f9" font-size="9" font-family="Inter" font-weight="600">${w}</text>
+    `).join('')}
+  `;
+
+  // Подписи дат
+  const step = Math.ceil(n / 4);
+  labelsEl.innerHTML = dates
+    .filter((_, i) => i === 0 || i === n - 1 || i % step === 0)
+    .map(d => {
+      const dt = new Date(d);
+      return `<span>${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}</span>`;
+    }).join('');
+}
+
+function renderWeightHistory(records) {
+  const el = document.getElementById('weight-history-list');
+  if (!records.length) {
+    el.innerHTML = '';
+    return;
+  }
+  const recent = [...records].reverse().slice(0, 5);
+  el.innerHTML = `<div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">Последние записи</div>` +
+    recent.map(r => {
+      const dt = new Date(r.date);
+      const label = dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      return `<div class="meal-item" style="padding:8px 0">
+        <span style="font-size:0.85rem;color:var(--muted)">${label}</span>
+        <span style="font-weight:700">${r.weight} кг</span>
+      </div>`;
+    }).join('');
+}
+
+async function saveWeight() {
+  const input = document.getElementById('weight-input');
+  const val = parseFloat(input.value.replace(',', '.'));
+  if (!val || val < 20 || val > 400) {
+    showToast('❌ Введи корректный вес (20–400 кг)');
+    return;
+  }
+
+  try {
+    showLoading('Сохраняю вес…');
+    await apiPost('/api/save-weight', { weight: val });
+    input.value = '';
+    showToast(`✅ Вес ${val} кг сохранён!`);
+    await loadProgress();
+  } catch (err) {
+    showToast('⚠️ ' + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// СТРАНИЦА: ИИ-ЧАТ
+// ══════════════════════════════════════════════════════
+let chatHistory = [];
+
+function addBubble(text, type) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-bubble bubble-${type}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble bubble-bot bubble-typing';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  document.getElementById('typing-indicator')?.remove();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  // Скрываем чипы после первого сообщения
+  document.getElementById('quick-chips').style.display = 'none';
+
+  addBubble(text, 'user');
+  addTyping();
+
+  const sendBtn = document.getElementById('chat-send');
+  sendBtn.disabled = true;
+
+  try {
+    const res = await apiPost('/api/chat', { message: text });
+    removeTyping();
+    addBubble(res.reply, 'bot');
+  } catch (err) {
+    removeTyping();
+    addBubble('😕 Ошибка: ' + err.message, 'bot');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function sendChip(text) {
+  document.getElementById('chat-input').value = text;
+  sendChat();
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+async function init() {
+  showLoading('Загружаем данные…');
+  try {
+    await loadFoodPage();
+  } finally {
+    hideLoading();
+  }
+
+  // Добавляем приветственное сообщение в чат
+  setTimeout(() => {
+    addBubble('Привет! 🌿 Я VITA — твой личный ИИ-ассистент по здоровому питанию и образу жизни. Спрашивай всё что хочешь!', 'bot');
+  }, 300);
+}
+
+init();
+</script>
+</body>
+</html>
